@@ -1,0 +1,10 @@
+*.a
+*.so
+*.o
+*.swp
+apriltag/example/opencv_demo
+apriltag/example/apriltag_demo
+apriltag/build/
+RUNEtag/build/
+stag/app/
+build/

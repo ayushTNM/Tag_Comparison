@@ -67,6 +67,7 @@
         "variant": "cpp",
         "strstream": "cpp",
         "future": "cpp",
-        "cfenv": "cpp"
+        "cfenv": "cpp",
+        "apriltag_pose.h": "c"
     }
 }

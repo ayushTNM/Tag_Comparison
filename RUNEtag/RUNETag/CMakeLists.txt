@@ -39,7 +39,7 @@ ADD_SUBDIRECTORY( WinNTL )
 
 INCLUDE_DIRECTORIES( "${PROJECT_SOURCE_DIR}/include"
 					  ${OpenCV_INCLUDE_DIRS} 
-					  "WinNTL/include"
+					  "WinNTL/include"librune
 					   )
 					  
 INSTALL( DIRECTORY "${PROJECT_SOURCE_DIR}/include" DESTINATION . )

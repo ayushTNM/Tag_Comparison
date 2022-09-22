@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.1)
-project(apriltag VERSION 3.2.0 LANGUAGES C CXX)
+project(apriltag VERSION 3.3.0 LANGUAGES C CXX)
 
 if(POLICY CMP0077)
     cmake_policy(SET CMP0077 NEW)
@@ -8,7 +8,7 @@ option(BUILD_SHARED_LIBS "Build shared libraries" ON)
 option(ASAN "Use AddressSanitizer for debug builds to detect memory issues" OFF)
 
 if (ASAN)
-    set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} \
+    set(ASAN_FLAGS "\
         -fsanitize=address \
         -fsanitize=bool \
         -fsanitize=bounds \
@@ -24,6 +24,8 @@ if (ASAN)
         -fsanitize=leak \
         -fsanitize=object-size \
     ")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${ASAN_FLAGS}")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${ASAN_FLAGS}")
 endif()
 
 # Set a default build type if none was specified
@@ -44,10 +46,7 @@ file(GLOB TAG_FILES ${CMAKE_CURRENT_SOURCE_DIR}/tag*.c)
 add_library(${PROJECT_NAME} ${APRILTAG_SRCS} ${COMMON_SRC} ${TAG_FILES})
 
 if (MSVC)
-    # FindThreads will not find pthread.h with MSVC
-    # winmm is necessary for __imp_timeGetTime
-    find_library(PTHREAD_LIBRARIES NAMES pthreads)
-    target_link_libraries(${PROJECT_NAME} ${PTHREAD_LIBRARIES} winmm)
+    add_compile_definitions("_CRT_SECURE_NO_WARNINGS")
 else()
     find_package(Threads REQUIRED)
     target_link_libraries(${PROJECT_NAME} PUBLIC Threads::Threads m)
@@ -114,11 +113,10 @@ export(TARGETS apriltag
     FILE ${generated_dir}/${targets_export_name}.cmake)
 
 
-# install pkgconfig related files
-FILE(READ apriltag.pc.in PKGC)
-STRING(REGEX REPLACE "^prefix=" "prefix=${CMAKE_INSTALL_PREFIX}" PKGC_CONF "${PKGC}" )
-FILE(WRITE ${PROJECT_BINARY_DIR}/apriltag.pc ${PKGC_CONF})
-install(FILES "${PROJECT_BINARY_DIR}/apriltag.pc" DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig/")
+# install pkgconfig file
+configure_file(${PROJECT_NAME}.pc.in ${PROJECT_NAME}.pc @ONLY)
+install(FILES "${CMAKE_BINARY_DIR}/${PROJECT_NAME}.pc"
+        DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
 
 
 # Python wrapper
@@ -138,6 +136,7 @@ if (NOT Python3_NOT_FOUND AND NOT Numpy_NOT_FOUND AND PYTHONLIBS_FOUND AND BUILD
     set(PY_VARS CFLAGS LDFLAGS LINKER EXT_SUFFIX)
     cmake_parse_arguments(PY "" "${PY_VARS}" "" ${PY_OUT})
     separate_arguments(PY_CFLAGS)
+    list(REMOVE_ITEM PY_CFLAGS -flto)
     separate_arguments(PY_LDFLAGS)
 
     foreach(X detect py_type)
@@ -160,21 +159,28 @@ string(STRIP ${PY_DEST} PY_DEST)
 install(FILES ${PROJECT_BINARY_DIR}/apriltag${PY_EXT_SUFFIX} DESTINATION ${PY_DEST})
 endif (NOT Python3_NOT_FOUND AND NOT Numpy_NOT_FOUND AND PYTHONLIBS_FOUND AND BUILD_PYTHON_WRAPPER)
 
-
 # Examples
 # apriltag_demo
 add_executable(apriltag_demo example/apriltag_demo.c)
-target_link_libraries(apriltag_demo apriltag)
+target_link_libraries(apriltag_demo ${PROJECT_NAME})
 
 # opencv_demo
-find_package(OpenCV COMPONENTS core imgproc videoio highgui QUIET)
+set(_OpenCV_REQUIRED_COMPONENTS core imgproc videoio highgui)
+find_package(OpenCV COMPONENTS ${_OpenCV_REQUIRED_COMPONENTS} QUIET CONFIG)
 if(OpenCV_FOUND)
+    # NB: contrib required for TickMeter in OpenCV 2.4. This is only required for 16.04 backwards compatibility and can be removed in the future.
+    #     If we add it to the find_package initially, the demo won't build for newer OpenCV versions
+    if(OpenCV_VERSION VERSION_LESS "3.0.0")
+        list(APPEND _OpenCV_REQUIRED_COMPONENTS contrib)
+        find_package(OpenCV COMPONENTS ${_OpenCV_REQUIRED_COMPONENTS} CONFIG)
+    endif()
+
     add_executable(opencv_demo example/opencv_demo.cc)
     target_link_libraries(opencv_demo apriltag ${OpenCV_LIBRARIES})
     set_target_properties(opencv_demo PROPERTIES CXX_STANDARD 11)
     install(TARGETS opencv_demo RUNTIME DESTINATION bin)
 else()
-    message(WARNING "OpenCV not found: Not building demo")
+    message(STATUS "OpenCV not found: Not building demo")
 endif(OpenCV_FOUND)
 
 # install example programs

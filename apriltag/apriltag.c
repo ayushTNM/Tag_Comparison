@@ -37,6 +37,7 @@ either expressed or implied, of the Regents of The University of Michigan.
 #include <stdint.h>
 #include <string.h>
 #include <stdio.h>
+#include <errno.h>
 
 #include "common/image_u8.h"
 #include "common/image_u8x3.h"
@@ -46,6 +47,7 @@ either expressed or implied, of the Regents of The University of Michigan.
 #include "common/timeprofile.h"
 #include "common/math_util.h"
 #include "common/g2d.h"
+#include "common/debug_print.h"
 
 #include "apriltag_math.h"
 
@@ -214,17 +216,20 @@ static void quick_decode_init(apriltag_family_t *family, int maxhamming)
 
     qd->nentries = capacity * 3;
 
-//    printf("capacity %d, size: %.0f kB\n",
+//    debug_print("capacity %d, size: %.0f kB\n",
 //           capacity, qd->nentries * sizeof(struct quick_decode_entry) / 1024.0);
 
     qd->entries = calloc(qd->nentries, sizeof(struct quick_decode_entry));
     if (qd->entries == NULL) {
-        printf("apriltag.c: failed to allocate hamming decode table. Reduce max hamming size.\n");
-        exit(-1);
+        debug_print("Failed to allocate hamming decode table\n");
+        // errno already set to ENOMEM (Error No MEMory) by calloc() failure
+        return;
     }
 
     for (int i = 0; i < qd->nentries; i++)
         qd->entries[i].rcode = UINT64_MAX;
+
+    errno = 0;
 
     for (int i = 0; i < family->ncodes; i++) {
         uint64_t code = family->codes[i];
@@ -254,13 +259,16 @@ static void quick_decode_init(apriltag_family_t *family, int maxhamming)
         }
 
         if (maxhamming > 3) {
-            printf("apriltag.c: maxhamming beyond 3 not supported\n");
+            debug_print("\"maxhamming\" beyond 3 not supported\n");
+            // set errno to Error INvalid VALue
+            errno = EINVAL;
+            return;
         }
     }
 
     family->impl = qd;
 
-    if (0) {
+    #if 0
         int longest_run = 0;
         int run = 0;
         int run_sum = 0;
@@ -282,7 +290,7 @@ static void quick_decode_init(apriltag_family_t *family, int maxhamming)
         }
 
         printf("quick decode: longest run: %d, average run %.3f\n", longest_run, 1.0 * run_sum / run_count);
-    }
+    #endif
 }
 
 // returns an entry with hamming set to 255 if no decode was found.
@@ -291,7 +299,8 @@ static void quick_decode_codeword(apriltag_family_t *tf, uint64_t rcode,
 {
     struct quick_decode *qd = (struct quick_decode*) tf->impl;
 
-    for (int ridx = 0; ridx < 4; ridx++) {
+    // qd might be null if detector_add_family_bits() failed
+    for (int ridx = 0; qd != NULL && ridx < 4; ridx++) {
 
         for (int bucket = rcode % qd->nentries;
              qd->entries[bucket].rcode != UINT64_MAX;
@@ -358,7 +367,7 @@ apriltag_detector_t *apriltag_detector_create()
 
     td->qtp.max_line_fit_mse = 10.0;
     td->qtp.cos_critical_rad = cos(10 * M_PI / 180);
-    td->qtp.deglitch = 0;
+    td->qtp.deglitch = false;
     td->qtp.min_white_black_diff = 5;
 
     td->tag_families = zarray_create(sizeof(apriltag_family_t*));
@@ -367,11 +376,11 @@ apriltag_detector_t *apriltag_detector_create()
 
     td->tp = timeprofile_create();
 
-    td->refine_edges = 1;
+    td->refine_edges = true;
     td->decode_sharpening = 0.25;
 
 
-    td->debug = 0;
+    td->debug = false;
 
     // NB: defer initialization of td->wp so that the user can
     // override td->nthreads.
@@ -440,7 +449,7 @@ static matd_t* homography_compute2(double c[4][4]) {
         }
 
         if (max_val < epsilon) {
-            fprintf(stderr, "WRN: Matrix is singular.\n");
+            debug_print("WRN: Matrix is singular.\n");
             return NULL;
         }
 
@@ -874,7 +883,7 @@ static void refine_edges(apriltag_detector_t *td, image_u8_t *im_orig, struct qu
             quad->p[(i+1)&3][1] = lines[i][1] + L0*A10;
         } else {
             // this is a bad sign. We'll just keep the corner we had.
-//            printf("bad det: %15f %15f %15f %15f %15f\n", A00, A11, A10, A01, det);
+//            debug_print("bad det: %15f %15f %15f %15f %15f\n", A00, A11, A10, A01, det);
         }
     }
 }
@@ -994,13 +1003,17 @@ zarray_t *apriltag_detector_detect(apriltag_detector_t *td, image_u8_t *im_orig)
 {
     if (zarray_size(td->tag_families) == 0) {
         zarray_t *s = zarray_create(sizeof(apriltag_detection_t*));
-        printf("apriltag.c: No tag families enabled.");
+        debug_print("No tag families enabled\n");
         return s;
     }
 
     if (td->wp == NULL || td->nthreads != workerpool_get_nthreads(td->wp)) {
         workerpool_destroy(td->wp);
         td->wp = workerpool_create(td->nthreads);
+        if (td->wp == NULL) {
+            // creating workerpool failed - return empty zarray
+            return zarray_create(sizeof(apriltag_detection_t*));
+        }
     }
 
     timeprofile_clear(td->tp);
@@ -1224,7 +1237,7 @@ zarray_t *apriltag_detector_detect(apriltag_detector_t *td, image_u8_t *im_orig)
                     if (pref == 0) {
                         // at this point, we should only be undecided if the tag detections
                         // are *exactly* the same. How would that happen?
-                        printf("uh oh, no preference for overlappingdetection\n");
+                        debug_print("uh oh, no preference for overlappingdetection\n");
                     }
 
                     if (pref < 0) {

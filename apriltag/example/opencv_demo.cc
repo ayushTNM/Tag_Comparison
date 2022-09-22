@@ -26,6 +26,7 @@ either expressed or implied, of the Regents of The University of Michigan.
 */
 
 #include <iostream>
+#include <iomanip>
 
 #include "opencv2/opencv.hpp"
 
@@ -51,6 +52,7 @@ int main(int argc, char *argv[])
     getopt_t *getopt = getopt_create();
 
     getopt_add_bool(getopt, 'h', "help", 0, "Show this help");
+    getopt_add_int(getopt, 'c', "camera", "0", "camera ID");
     getopt_add_bool(getopt, 'd', "debug", 0, "Enable debugging output (slow)");
     getopt_add_bool(getopt, 'q', "quiet", 0, "Reduce output");
     getopt_add_string(getopt, 'f', "family", "tag36h11", "Tag family to use");
@@ -67,12 +69,12 @@ int main(int argc, char *argv[])
     }
 
     cout << "Enabling video capture" << endl;
-    
+
     TickMeter meter;
     meter.start();
 
     // Initialize camera
-    VideoCapture cap(0);
+    VideoCapture cap(getopt_get_int(getopt, "camera"));
     if (!cap.isOpened()) {
         cerr << "Couldn't open video capture device" << endl;
         return -1;
@@ -105,6 +107,12 @@ int main(int argc, char *argv[])
 
     apriltag_detector_t *td = apriltag_detector_create();
     apriltag_detector_add_family(td, tf);
+
+    if (errno == ENOMEM) {
+        printf("Unable to add family to detector due to insufficient memory to allocate the tag-family decoder with the default maximum hamming value of 2. Try choosing an alternative tag family.\n");
+        exit(-1);
+    }
+
     td->quad_decimate = getopt_get_double(getopt, "decimate");
     td->quad_sigma = getopt_get_double(getopt, "blur");
     td->nthreads = getopt_get_int(getopt, "threads");
@@ -113,18 +121,22 @@ int main(int argc, char *argv[])
 
     float frame_counter = 0.0f;
     meter.stop();
-    cout << "Detector " << famname << " initialized in " 
+    cout << "Detector " << famname << " initialized in "
         << std::fixed << std::setprecision(3) << meter.getTimeSec() << " seconds" << endl;
+#if CV_MAJOR_VERSION > 3
     cout << "  " << cap.get(CAP_PROP_FRAME_WIDTH ) << "x" <<
                     cap.get(CAP_PROP_FRAME_HEIGHT ) << " @" <<
                     cap.get(CAP_PROP_FPS) << "FPS" << endl;
+#else
+    cout << "  " << cap.get(CV_CAP_PROP_FRAME_WIDTH ) << "x" <<
+                    cap.get(CV_CAP_PROP_FRAME_HEIGHT ) << " @" <<
+                    cap.get(CV_CAP_PROP_FPS) << "FPS" << endl;
+#endif
     meter.reset();
 
-    Mat frame, gray,frame2;
-    int frame_width = cap.get(CAP_PROP_FRAME_WIDTH);//Getting the frame height//
-    int frame_height = cap.get(CAP_PROP_FRAME_HEIGHT);//Getting the frame width//
-    VideoWriter video("outcpp.avi",cv::VideoWriter::fourcc('M','J','P','G'),10, Size(frame_width,frame_height));
+    Mat frame, gray;
     while (true) {
+        errno = 0;
         cap >> frame;
         cvtColor(frame, gray, COLOR_BGR2GRAY);
 
@@ -136,6 +148,11 @@ int main(int argc, char *argv[])
         };
 
         zarray_t *detections = apriltag_detector_detect(td, &im);
+
+        if (errno == EAGAIN) {
+            printf("Unable to create the %d threads requested.\n",td->nthreads);
+            exit(-1);
+        }
 
         // Draw detection outlines
         for (int i = 0; i < zarray_size(detections); i++) {
@@ -167,9 +184,8 @@ int main(int argc, char *argv[])
                     fontface, fontscale, Scalar(0xff, 0x99, 0), 2);
         }
         apriltag_detections_destroy(detections);
-        video.write(frame);
-        flip(frame,frame2,1);
-        imshow("Tag Detections", frame2);
+
+        imshow("Tag Detections", frame);
         if (waitKey(30) >= 0)
             break;
     }

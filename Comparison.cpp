@@ -79,7 +79,6 @@ void detect (std::string marker_type, cv::Mat &image, double markerLength,
         tvecs.push_back(tvec);
         cv::Vec3d ypr = rotationMatrixToEulerAngles(R);
         
-        ypr[2] += 180;
         yprs.push_back(ypr);
 
         
@@ -191,10 +190,25 @@ void detect (std::string marker_type, cv::Mat &image, double markerLength,
   }
 }
 
+void save(string type, vector<string> out) {
+  int count =0;
+  // string filepath = "results/"+type;
+  while (std::ifstream(type + ".txt"))
+  {
+      type += std::to_string(count);
+      count++;
+      // return false;
+  }
+  std::ofstream output_file(type + ".txt");
+  std::ostream_iterator<std::string> output_iterator(output_file, "\n");
+  std::copy(out.begin(), out.end(), output_iterator);
+}
 
 
 int main(void) {
   cv::VideoCapture inputVideo;
+  string type = "april";
+  double size = 0.033; //m
   // Timer clock;
   inputVideo.open(0);
   std::string filename = "calib.txt";
@@ -202,6 +216,7 @@ int main(void) {
   float frames = 0;
   float detFrames = 0;
   // detectCharucoBoardWithCalibrationPose();
+  vector<string> data;
   while (inputVideo.grab()) {
     cv::Mat image, imageCopy;
     inputVideo.retrieve(image);
@@ -209,14 +224,21 @@ int main(void) {
 
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
     std::vector<cv::Vec3d> tvecs, yprs;
-    detect("stag", image, 0.076, tvecs,yprs);
-    frames++;
-
-    for(int i=0; i<yprs.size(); i++) {
+    detect(type, image, size, tvecs,yprs);
     
-      std::cout << "x " << tvecs[i][0] * 100<< " , y " << tvecs[i][1] * 100 << " , z " << tvecs[i][2] * 100 << std::endl;
-      std::cout << "yaw " << yprs[i][0] << " , pitch " << yprs[i][1] << " , roll " << yprs[i][2] << std::endl;
-      std::cout << std::endl;
+    frames++;
+    if (yprs.size() > 0) {
+      for(int i=0; i<yprs.size(); i++) {
+      
+        std::cout << "x " << tvecs[i][0] * 100<< " , y " << tvecs[i][1] * 100 << " , z " << tvecs[i][2] * 100 << std::endl;
+        std::cout << "yaw " << yprs[i][0] << " , pitch " << yprs[i][1] << " , roll " << yprs[i][2] << std::endl;
+        std::cout << std::endl;
+        data.push_back("("+std::to_string( tvecs[i][0] * 100)+","+std::to_string( tvecs[i][1] * 100)+","+std::to_string( tvecs[i][2] * 100)+","+
+                        std::to_string(yprs[i][0])+","+std::to_string(yprs[i][1])+","+std::to_string(yprs[i][0])+","+")"+" (null,null,null,null,null,null)");
+      }
+    }
+    else {
+      data.push_back("(null,null,null,null,null,null) (null,null,null,null,null,null)");
     }
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
     // std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::milliseconds> (end - begin).count() << "[ms]" << std::endl;
@@ -227,4 +249,5 @@ int main(void) {
     if (key == 27)
         break;
   }
+  save(type,data);
 }

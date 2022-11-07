@@ -3,6 +3,7 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/aruco/charuco.hpp>
+#include <opencv2/core/utils/filesystem.hpp>
 #include <boost/program_options.hpp>
 #include "aruco_samples_utility.hpp"
 
@@ -31,6 +32,13 @@ extern "C" {
 #include "auxrenderer.hpp"
 #include "ellipsefitter.hpp"
 
+// #include "serial/serial.h"
+#include "gcode.h"
+
 cv::Mat cameraMatrix, distCoeffs;
+grbl controller;
+// cv::Vec3f loc = cv::Vec3f(0,0,0),maxLoc;
+double dist = 0;
+// serial::Serial controller;
 cv::Ptr<cv::aruco::Dictionary> dictionary_aruco = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_6X6_250);
   // You can read camera parameters from tutorial_camera_params.yml

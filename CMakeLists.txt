@@ -54,9 +54,25 @@ SET( RUNETAG_INCL
 	  "RUNEtag/RUNETag/include/coding.h")
 
 ADD_LIBRARY( libRUNETag STATIC ${RUNETAG_SRCS} ${RUNETAG_INCL} )
-include_directories( "${PROJECT_SOURCE_DIR}/RUNEtag/RUNETag/include" ${OpenCV_INCLUDE_DIRS} "RUNEtag/RUNETag/WinNTL/include" stag/src/ stag/src/ED/)
+
+set(serial_SRCS
+    serial/src/serial.cc
+    serial/include/serial/serial.h
+    serial/include/serial/v8stdint.h
+	serial/src/impl/unix.cc
+	serial/src/impl/list_ports/list_ports_linux.cc
+	gcode.cpp
+	gcode.h
+)
+
+
+ADD_LIBRARY( serial ${serial_SRCS})
+# ADD_SUBDIRECTORY(serial/src/impl)
+# ADD_SUBDIRECTORY(serial/include/impl)
+
+include_directories( "${PROJECT_SOURCE_DIR}/RUNEtag/RUNETag/include" ${OpenCV_INCLUDE_DIRS} "RUNEtag/RUNETag/WinNTL/include" stag/src/ED/ serial/include)
 add_executable( Comparison Comparison.cpp Comparison.h)
-target_link_libraries( Comparison apriltag LibStag libRUNETag WinNTL ${OpenCV_LIBS})
+target_link_libraries( Comparison apriltag LibStag libRUNETag WinNTL serial ${OpenCV_LIBS})
 
 add_executable( Calib calibrate_camera_charuco.cpp )
 target_link_libraries( Calib ${OpenCV_LIBS})

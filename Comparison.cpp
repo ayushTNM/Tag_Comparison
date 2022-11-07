@@ -1,4 +1,5 @@
 #include <iostream>
+
 #include "Comparison.h"
 
 
@@ -192,45 +193,66 @@ void detect (std::string marker_type, cv::Mat &image, double markerLength,
 
 void save(string type, vector<string> out) {
   int count =0;
-  // string filepath = "results/"+type;
-  while (std::ifstream(type + ".txt"))
+  if (!cv::utils::fs::exists("./results") || !cv::utils::fs::isDirectory("./results")) {
+    cv::utils::fs::createDirectory("./results");
+  }
+  string filepath = "results/"+type;
+  while (std::ifstream(filepath + ".txt"))
   {
-      type += std::to_string(count);
+      filepath += std::to_string(count);
       count++;
       // return false;
   }
-  std::ofstream output_file(type + ".txt");
+  std::ofstream output_file(filepath + ".txt");
   std::ostream_iterator<std::string> output_iterator(output_file, "\n");
   std::copy(out.begin(), out.end(), output_iterator);
 }
 
-
-int main(void) {
-  cv::VideoCapture inputVideo;
-  string type = "april";
-  double size = 0.033; //m
-  // Timer clock;
-  inputVideo.open(0);
-  std::string filename = "calib.txt";
-  readCameraParameters(filename, cameraMatrix, distCoeffs); // This function is located in detect_markers.cpp
+void move_and_log(cv::VideoCapture inputVideo, string type, cv::Vec2f location, float speed) {
   float frames = 0;
   float detFrames = 0;
   // detectCharucoBoardWithCalibrationPose();
+  double size = 0.033; //m
+  int fps = 20;
   vector<string> data;
-  while (inputVideo.grab()) {
-    cv::Mat image, imageCopy;
-    inputVideo.retrieve(image);
-    image.copyTo(imageCopy);
-
-    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
-    std::vector<cv::Vec3d> tvecs, yprs;
-    detect(type, image, size, tvecs,yprs);
+  cv::Mat image;
+  std::vector<cv::Vec3d> tvecs, yprs;
+    // std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
+    // std::chrono::steady_clock::time_point beginFPS = std::chrono::steady_clock::now();
+  inputVideo.grab();
+  frames++;
+  inputVideo.retrieve(image);
+  detect(type, image, size, tvecs,yprs);
+  // std::chrono::steady_clock::time_point endFPS = std::chrono::steady_clock::now();
+  // double fps = 1/((double)std::chrono::duration_cast<std::chrono::milliseconds> (endFPS - beginFPS).count()/1000);
+  controller.move(location,speed,false);
+  while (true){
+  // while (frames < time*fps) {
     
+    // double fps = inputVideo.get(cv::CAP_PROP_FPS);
+    // std::cout << "fps " << fps << std::endl;
+    inputVideo.grab();
+    inputVideo.retrieve(image);
+    // image.copyTo(imageCopy);
+
+    
+    
+    detect(type, image, size, tvecs,yprs);
+    // loc = parse_loc();
+    // cv::Vec2f newloc = controller.getLoc();
+    // newloc[0]+=0.001;
+    // newloc[1]+=0.001;
+    // endFPS = std::chrono::steady_clock::now();
+    // fps = 1/((double)std::chrono::duration_cast<std::chrono::milliseconds> (endFPS - beginFPS).count()/1000);
+    // std::cout << "fps " << fps << std::endl;
+    // beginFPS = std::chrono::steady_clock::now();
+
     frames++;
     if (yprs.size() > 0) {
       for(int i=0; i<yprs.size(); i++) {
       
-        std::cout << "x " << tvecs[i][0] * 100<< " , y " << tvecs[i][1] * 100 << " , z " << tvecs[i][2] * 100 << std::endl;
+        std::cout << "x " << tvecs[i][0] * 100 << " ,y " << tvecs[i][1] * 100 << "(" << (controller.loc[0]-177)/10 << ")" << " ,z " << tvecs[i][2] * 100 << "(" << (controller.loc[1]/10)+dist << ")" 
+                  << std::endl;
         std::cout << "yaw " << yprs[i][0] << " , pitch " << yprs[i][1] << " , roll " << yprs[i][2] << std::endl;
         std::cout << std::endl;
         data.push_back("("+std::to_string( tvecs[i][0] * 100)+","+std::to_string( tvecs[i][1] * 100)+","+std::to_string( tvecs[i][2] * 100)+","+
@@ -240,14 +262,159 @@ int main(void) {
     else {
       data.push_back("(null,null,null,null,null,null) (null,null,null,null,null,null)");
     }
-    std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-    // std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::milliseconds> (end - begin).count() << "[ms]" << std::endl;
     cv::imshow("out", image);
-    // std::cout << "accuracy " << (detFrames/frames) << std::endl;
+    
+    // }
+    // std::cout << std::endl;
+    if (controller.status()[0] == "<Idle") {
+      return;
+    }
     
     char key = (char) cv::waitKey(1);
     if (key == 27)
-        break;
+      break;
   }
-  save(type,data);
+  // std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+  // std::cout << "Time = " << std::chrono::duration_cast<std::chrono::seconds> (end - begin).count() << "[ms]" << std::endl;
+  // save(type,data);
+
+}
+
+// void unlock_controller() {
+//   controller.read();
+//   sleep(1);
+//   // controller.waitReadable();
+//   // controller.readlines();
+//   controller.write("$X\n");
+//   while(controller.read(2) != "ok") {}
+// }
+
+
+// void center_controller() {
+//   controller.write("G21G91G1X177F10000\nG90G21\n");
+//   wait_controller();
+//   loc[0]+=177;
+// }
+
+// void parse_grbl() {
+//   controller.write("$$\n");
+//   controller.waitReadable();
+//   vector<string> data = controller.readlines();
+//   for (int i =0; i <  data.size(); i++) {
+//     vector<string> splitted = split(data[i],' ');
+//     splitted = split(data[i],'=');
+//     if (splitted[0] == "$130") {
+//       maxLoc[0] = std::stod(splitted[1]);
+//     }
+//     if (splitted[0] == "$131") {
+//       maxLoc[1] = std::stod(splitted[1]);
+//     }
+    
+//   }
+//   // std::cout << maxLoc << std::endl;
+// }
+
+
+int main(void) {
+  controller.connect("/dev/ttyACM0", 115200);
+  // sleep(1);
+  // std::cout << std::endl;
+  // unlock_controller();
+  // std:: cout << controller.readline() << std::endl;
+  // sleep(0.5);
+  // result = controller.readlines();
+  // for (int i =0;i < result.size();i++) {
+  //   std::cout << result[i] << std::endl;
+  // }
+  // std::cout << std::endl;
+  controller.home();
+
+  // Center controller
+  controller.move(cv::Vec2f(17.7,0), 10000);
+
+  // parse_grbl();
+  // controller.waitReadable();
+  // vector<string> result = controller.readlines();
+  // for (int i =0;i < result.size();i++) {
+  // }
+  // std::cout << std::endl;
+  controller.setTimeout(50);
+  // center_controller();
+  // std::cout << "Give Distance: ";
+  // std::cin >> dist;
+      // controller.write("$$\n");
+      // // sleep(1);
+      // vector<string> test =controller.readlines();
+      // for (int i =0; i < test.size();i++) {
+      //   std::cout << test[i] << std::endl;
+      // }
+  // vector<serial::PortInfo> devices_found = serial::list_ports();
+
+	// vector<serial::PortInfo>::iterator iter = devices_found.begin();
+
+	// while( iter != devices_found.end() )
+	// {
+	// 	serial::PortInfo device = *iter++;
+
+	// 	printf( "(%s, %s, %s)\n", device.port.c_str(), device.description.c_str(),
+  //    device.hardware_id.c_str() );
+	// }
+  cv::VideoCapture inputVideo(0);
+  
+  // Timer clock;
+  // inputVideo.open(0);
+  std::string filename = "calib.txt";
+  readCameraParameters(filename, cameraMatrix, distCoeffs); // This function is located in detect_markers.cpp
+  cv::Vec2f moveLoc (40,0);
+  cv::Vec2f moveLoc2 (0,-40);
+
+  cv::Vec3f moveRot (0,0,0);
+  double speed = 1000;       // mm/min
+
+  move_and_log(inputVideo, "april", moveLoc, speed);
+  move_and_log(inputVideo, "april", moveLoc2, speed);
+
+  // move(moveLoc,moveLoc,10000,20);
+  // move(moveLoc2,moveLoc,10000,20);
+  // move(moveLoc,moveLoc,10000,20);
+  // move(moveLoc2,moveLoc,10000,20);
+  // move_and_log();
+
+  
+
+
+  
+  // while (inputVideo.grab()) {
+  //   cv::Mat image, imageCopy;
+  //   inputVideo.retrieve(image);
+  //   image.copyTo(imageCopy);
+
+  //   std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
+  //   std::vector<cv::Vec3d> tvecs, yprs;
+  //   detect(type, image, size, tvecs,yprs);
+    
+  //   frames++;
+  //   if (yprs.size() > 0) {
+  //     for(int i=0; i<yprs.size(); i++) {
+      
+  //       std::cout << "x " << tvecs[i][0] * 100<< " , y " << tvecs[i][1] * 100 << " , z " << tvecs[i][2] * 100 << std::endl;
+  //       std::cout << "yaw " << yprs[i][0] << " , pitch " << yprs[i][1] << " , roll " << yprs[i][2] << std::endl;
+  //       std::cout << std::endl;
+  //       data.push_back("("+std::to_string( tvecs[i][0] * 100)+","+std::to_string( tvecs[i][1] * 100)+","+std::to_string( tvecs[i][2] * 100)+","+
+  //                       std::to_string(yprs[i][0])+","+std::to_string(yprs[i][1])+","+std::to_string(yprs[i][0])+","+")"+" (null,null,null,null,null,null)");
+  //     }
+  //   }
+  //   else {
+  //     data.push_back("(null,null,null,null,null,null) (null,null,null,null,null,null)");
+  //   }
+  //   std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+  //   // std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::milliseconds> (end - begin).count() << "[ms]" << std::endl;
+  //   cv::imshow("out", image);
+  //   // std::cout << "accuracy " << (detFrames/frames) << std::endl;
+    
+  //   char key = (char) cv::waitKey(1);
+  //   if (key == 27)
+  //       break;
+  // }
+  controller.close();
 }

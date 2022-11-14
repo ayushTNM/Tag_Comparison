@@ -7,15 +7,19 @@ class grbl
 {
 private:
     serial::Serial serialPort;
-    cv::Vec2f maxLoc = cv::Vec2f(0,0);
 public:
-    cv::Vec2f loc = cv::Vec2f(0,0);
+    std::string state;
+    cv::Vec2f loc , minLoc, maxLoc;
+    // cv::Vec2f maxMachineLoc = cv::Vec2f(0,0);
     void home();
-    cv::Vec2f readMaxLoc();
+    // void updateMachineLoc();
+    // void updateLoc();
+    // void updateAllLocs();
     void connect(std::string port, int Baudrate, int timeout=1000);
     void setTimeout(int timeout);
     void move(cv::Vec2f moveLoc, float speed, bool wait=true);
     void waitMove();
     void close();
-    std::vector<std::string> status();
+    void center();
+    void update(bool setbounds=false);
 };

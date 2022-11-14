@@ -13,13 +13,31 @@ std::vector<std::string> split(std::string s, char del)
     return splitted;
 }
 
-cv::Vec2f grbl::readMaxLoc()
-{
-    std::vector<std::string> splitted;
-    std::cout << "now" << std::endl;
-    std::vector<std::string> stats = status();
-    return (cv::Vec2f(std::stof(stats[1]), std::stof(stats[2])));
-}
+// void grbl::updateAllLocs()
+// {
+//     std::vector<std::string> splitted;
+//     std::cout << "now" << std::endl;
+//     std::vector<std::string> stats = status();
+//     loc = cv::Vec2f(std::stof(stats[1]), std::stof(stats[2]));
+//     machineLoc = cv::Vec2f(std::stof(stats[5]), std::stof(stats[6]));
+// }
+
+// void grbl::updateMachineLoc()
+// {
+//     std::vector<std::string> splitted;
+//     std::cout << "now" << std::endl;
+//     std::vector<std::string> stats = split(status()[3],',');
+//     machineLoc = cv::Vec2f(std::stof(stats[0]), std::stof(stats[1]));
+// }
+
+// void grbl::updateLoc()
+// {
+//     std::vector<std::string> splitted;
+//     std::cout << "now" << std::endl;
+//     std::vector<std::string> stats = split(status()[1],',');
+//     loc = cv::Vec2f(std::stof(stats[0]), std::stof(stats[1]));
+// }
+
 
 void grbl::home()
 {
@@ -30,10 +48,8 @@ void grbl::home()
     {
     }
     serialPort.readlines();
-    maxLoc = readMaxLoc();
-    maxLoc[0] = (-maxLoc[0]);
-    maxLoc[1] = (-maxLoc[1]);
-    std::cout << maxLoc << std::endl;
+    update(true);
+    std::cout << minLoc << ", " << maxLoc << std::endl;
 }
 
 void grbl::connect(std::string port, int baudrate, int timeout)
@@ -49,22 +65,34 @@ void grbl::setTimeout(int timeout)
     serialPort.setTimeout(serial::Timeout::max(), timeout, 0, timeout, 0);
 }
 
+void grbl::center()
+{
+    serialPort.write("G1 X0 Y0 F 10000\n");
+    waitMove();
+    maxLoc+=loc;
+}
+
 void grbl::waitMove()
 {
 
-    serialPort.write("?\n");
-    std::string result = "<Run";
-    serialPort.readlines();
-    while (result == "<Run")
+    // serialPort.write("?\n");
+    // std::string result = "<Run";
+    // serialPort.readlines();
+    update();
+    update();
+    while (state != "<Idle")
     {
-        result = status()[0];
+        // result = state;
+        std::cout << "Here " << state << std::endl;
+        update();
     }
+    std::cout << "Done" << std::endl;
 }
 
 void grbl::move(cv::Vec2f moveLoc, float speed, bool wait)
 {
     moveLoc *= 10;
-    std::cout << loc << ", " << moveLoc << ", " << maxLoc << std::endl;
+    std::cout << loc << ", " << moveLoc << ", " << minLoc <<", " << maxLoc << std::endl;
     if (loc[0] + moveLoc[0] > maxLoc[0])
     {
         moveLoc[0] = maxLoc[0] - loc[0];
@@ -73,27 +101,27 @@ void grbl::move(cv::Vec2f moveLoc, float speed, bool wait)
     {
         moveLoc[1] = maxLoc[1] - loc[1];
     }
-    if (loc[0] + moveLoc[0] < 0)
+    if (loc[0] + moveLoc[0] < minLoc[0])
     {
-        moveLoc[0] = loc[0];
+        moveLoc[0] = minLoc[0]-loc[0];
         // moveLoc[0] = -maxLoc[0];
     }
-    if (loc[1] + moveLoc[1] < 0)
+    if (loc[1] + moveLoc[1] < minLoc[1])
     {
-        moveLoc[1] = loc[1];
+        moveLoc[1] = minLoc[1]-loc[1];
     }
     serialPort.write("?\n");
     std::cout << serialPort.readline() << std::endl;
-    std::cout << loc << ", " << moveLoc << ", " << maxLoc << std::endl;
-    serialPort.write("G21G91G1X" + std::to_string(moveLoc[0]) + "Y" + std::to_string(moveLoc[1]) + "F" + std::to_string(speed) + "\nG90G21\n");
+    std::cout << loc << ", " << moveLoc << ", " << minLoc <<", " << maxLoc << std::endl;
+    serialPort.write("$J=G21G91X" + std::to_string(moveLoc[0]) + "Y" + std::to_string(moveLoc[1]) + "F" + std::to_string(speed) + "\n");
     std::cout << serialPort.readline() << std::endl;
+    std::cout << serialPort.readline() << std::endl;
+    std::cout << serialPort.readline() << std::endl;
+
     if (wait)
     {
         waitMove();
-        loc += moveLoc;
     }
-    else
-        loc += moveLoc;
 }
 
 void grbl::close()
@@ -101,20 +129,35 @@ void grbl::close()
     serialPort.close();
 }
 
-std::vector<std::string> grbl::status()
+void grbl::update(bool setbounds)
 {
     serialPort.write("?\n");
     std::vector<std::string> lines = serialPort.readlines();
-    std::vector<std::string> splitted = std::vector<std::string>();
+    std::vector<std::string> stats;
+    std::vector<std::string> locData;
 
     for (int i = 0; i < lines.size(); i++)
     {
         if (lines[i][0] == '<')
         {
-            splitted = split(lines[i], ',');
-            splitted[1] = split(splitted[1], ':')[1];
-            return splitted;
+            // auto pos= stats.begin() + 1;
+            // std::cout << lines[i] << std::endl;
+            stats = split(lines[i], '|');
+            state = stats[0];
+            stats[1] = split(stats[1], ':')[1];
+            locData = split(stats[1],',');
+            loc = cv::Vec2f(std::stof(locData[0]),std::stof(locData[1]));
+            // stats.erase(pos);
+            // stats.insert(pos,locData.begin(),locData.end());
+            // pos+=4;
+            if (setbounds == true && stats.size() > 3 && stats[3][0] == 'W') {
+                stats[3] = split(stats[3], ':')[1];
+                locData = split(stats[3],',');
+                maxLoc = cv::Vec2f(-std::stof(locData[0]),-std::stof(locData[1]));
+                minLoc = loc;
+            }
+            // stats.erase(pos);
+            // stats.insert(pos,locData.begin(),locData.end());
         }
     }
-    return splitted;
 }

@@ -20,11 +20,11 @@ void Drawer::colorAPixel(cv::Mat& img, int x, int y, cv::Scalar color, int dotWi
 	}
 }
 
-void Drawer::drawEdgeMap(const string& path, Mat image, EdgeMap* edgeMap)
+Mat Drawer::drawEdgeMap(const string& path, Mat image, EdgeMap* edgeMap)
 {
-	Mat greyMat = image.clone();
-	Mat bgrMat;
-	cv::cvtColor(greyMat, bgrMat, cv::COLOR_GRAY2BGR);
+	Mat bgrMat = image.clone();
+	// Mat bgrMat;
+	// cv::cvtColor(greyMat, bgrMat, cv::COLOR_GRAY2BGR);
 
 	int dotWidth = 1;
 	int whiteDotWidth = 2;
@@ -45,14 +45,16 @@ void Drawer::drawEdgeMap(const string& path, Mat image, EdgeMap* edgeMap)
 		}
 	}
 	vector<int> compressionParams = { cv::IMWRITE_PNG_COMPRESSION, 0 };
-	cv::imwrite(path, bgrMat, compressionParams);
+	// cv::imwrite(path, bgrMat, compressionParams);
+	return bgrMat;
+
 }
 
-void Drawer::drawLines(const string& path, Mat image, EDLines* edLines)
+Mat Drawer::drawLines(const string& path, Mat image, EDLines* edLines)
 {
-	Mat greyMat = image.clone();
-	Mat bgrMat;
-	cv::cvtColor(greyMat, bgrMat, cv::COLOR_GRAY2BGR);
+	Mat bgrMat = image.clone();
+	// Mat bgrMat;
+	// cv::cvtColor(greyMat, bgrMat, cv::COLOR_GRAY2BGR);
 
 	int currSegment = -1;
 	for (int i = 0; i < edLines->noLines; i++)
@@ -64,15 +66,17 @@ void Drawer::drawLines(const string& path, Mat image, EDLines* edLines)
 		cv::line(bgrMat, cv::Point(edLines->lines[i].sx, edLines->lines[i].sy), cv::Point(edLines->lines[i].ex, edLines->lines[i].ey), colors[i % colors.size()], 2, cv::LINE_AA);
 	}
 	vector<int> compressionParams = { cv::IMWRITE_PNG_COMPRESSION, 0 };
-	cv::imwrite(path, bgrMat, compressionParams);
+	// cv::imwrite(path, bgrMat, compressionParams);
+	return bgrMat;
+
 }
 
 
-void Drawer::drawCorners(const string& path, Mat image, const vector<vector<Corner>> &cornerGroups)
+Mat Drawer::drawCorners(const string& path, Mat image, const vector<vector<Corner>> &cornerGroups)
 {
-	Mat greyMat = image.clone();
-	Mat bgrMat;
-	cv::cvtColor(greyMat, bgrMat, cv::COLOR_GRAY2BGR);
+	Mat bgrMat = image.clone();
+	// Mat bgrMat;
+	// cv::cvtColor(greyMat, bgrMat, cv::COLOR_GRAY2BGR);
 
 	for (int i = 0; i < cornerGroups.size(); i++)
 	{
@@ -83,15 +87,16 @@ void Drawer::drawCorners(const string& path, Mat image, const vector<vector<Corn
 		}
 	}
 	vector<int> compressionParams = { cv::IMWRITE_PNG_COMPRESSION, 0 };
-	cv::imwrite(path, bgrMat, compressionParams);
+	// cv::imwrite(path, bgrMat, compressionParams);
+	return bgrMat;
 }
 
 
-void Drawer::drawQuads(const string& path, Mat image, const vector<Quad> &quads)
+Mat Drawer::drawQuads(const string& path, Mat image, const vector<Quad> &quads)
 {
-	Mat greyMat = image.clone();
-	Mat bgrMat;
-	cv::cvtColor(greyMat, bgrMat, cv::COLOR_GRAY2BGR);
+	Mat bgrMat = image.clone();
+	// Mat bgrMat;
+	// cv::cvtColor(greyMat, bgrMat, cv::COLOR_GRAY2BGR);
 
 	for (int i = 0; i < quads.size(); i++)
 	{
@@ -107,15 +112,16 @@ void Drawer::drawQuads(const string& path, Mat image, const vector<Quad> &quads)
 
 			}
 	vector<int> compressionParams = { cv::IMWRITE_PNG_COMPRESSION, 0 };
-	cv::imwrite(path, bgrMat, compressionParams);
+	return bgrMat;
+	// cv::imwrite(path, bgrMat, compressionParams);
 }
 
 
-void Drawer::drawMarkers(const string& path, Mat image, const vector<Marker> &markers)
+Mat Drawer::drawMarkers(const string& path, Mat image, const vector<Marker> &markers)
 {
-	Mat greyMat = image.clone();
-	Mat bgrMat;
-	cv::cvtColor(greyMat, bgrMat, cv::COLOR_GRAY2BGR);
+	Mat bgrMat = image.clone();
+	// Mat bgrMat;
+	// cv::cvtColor(greyMat, bgrMat, cv::COLOR_GRAY2BGR);
 
 	for (int i = 0; i < markers.size(); i++)
 	{
@@ -137,15 +143,16 @@ void Drawer::drawMarkers(const string& path, Mat image, const vector<Marker> &ma
 		cv::putText(bgrMat, std::to_string(markers[i].id), center, cv::FONT_HERSHEY_DUPLEX, 2, cv::Scalar(50, 50, 255), 2, cv::LINE_AA);
 	}
 	vector<int> compressionParams = { cv::IMWRITE_PNG_COMPRESSION, 0 };
-	cv::imwrite(path, bgrMat, compressionParams);
+	return bgrMat;
+	// cv::imwrite(path, bgrMat, compressionParams);/
 }
 
 
-void Drawer::drawEllipses(const string& path, Mat image, const vector<Marker> &markers)
+Mat Drawer::drawEllipses(const string& path, Mat image, const vector<Marker> &markers)
 {
-	Mat greyMat = image.clone();
-	Mat bgrMat;
-	cv::cvtColor(greyMat, bgrMat, cv::COLOR_GRAY2BGR);
+	Mat bgrMat = image.clone();
+	// Mat bgrMat;
+	// cv::cvtColor(greyMat, bgrMat, cv::COLOR_GRAY2BGR);
 
 	int dotWidth = 1;
 	int whiteDotWidth = 2;
@@ -274,5 +281,6 @@ void Drawer::drawEllipses(const string& path, Mat image, const vector<Marker> &m
 		
 	}
 	vector<int> compressionParams = { cv::IMWRITE_PNG_COMPRESSION, 0 };
-	cv::imwrite(path, bgrMat, compressionParams);
+	return bgrMat;
+	// cv::imwrite(path, bgrMat, compressionParams);
 }

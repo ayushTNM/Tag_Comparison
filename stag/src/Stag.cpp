@@ -48,16 +48,19 @@ void Stag::detectMarkers(Mat inImage)
 
 void Stag::logResults(string path)
 {
-	drawer.drawEdgeMap(path + "1 edges.png", image, edInterface.getEdgeMap());
-	drawer.drawLines(path + "2 lines.png", image, edInterface.getEDLines());
-	drawer.drawCorners(path + "3 corners.png", image, quadDetector.getCornerGroups());
-	drawer.drawQuads(path + "4 quads.png", image, quadDetector.getQuads());
-	if (keepLogs)
-		drawer.drawQuads(path + "5 distorted quads.png", image, quadDetector.getDistortedQuads());
-	drawer.drawMarkers(path + "6 markers.png", image, markers);
-	if (keepLogs)
-		drawer.drawQuads(path + "7 false quads.png", image, falseCandidates);
-	drawer.drawEllipses(path + "8 ellipses.png", image, markers);
+	Mat image1;
+	cv::cvtColor(image,image1,cv::COLOR_GRAY2BGR);
+	// image1 = drawer.drawEdgeMap(path + "1 edges.png", image1, edInterface.getEdgeMap());
+	// image1 = drawer.drawLines(path + "2 lines.png", image1, edInterface.getEDLines());
+	// image1 = drawer.drawCorners(path + "3 corners.png", image1, quadDetector.getCornerGroups());
+	// image1 = drawer.drawQuads(path + "4 quads.png", image1, quadDetector.getQuads());
+	// if (keepLogs)
+		// image1 = drawer.drawQuads(path + "5 distorted quads.png", image1, quadDetector.getDistortedQuads());
+	image1 = drawer.drawMarkers(path + "6 markers.png", image1, markers);
+	// if (keepLogs)
+	// 	image1 = drawer.drawQuads(path + "7 false quads.png", image1, falseCandidates);
+	// image1 = drawer.drawEllipses(path + "8 ellipses.png", image1, markers);
+	cv::imshow("test",image1);
 }
 
 

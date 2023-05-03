@@ -2,9 +2,11 @@
 *.so
 *.o
 *.swp
+*.h5
 apriltag/example/opencv_demo
 apriltag/example/apriltag_demo
 apriltag/build/
 RUNEtag/build/
 stag/app/
 build/
+Vizualisations/

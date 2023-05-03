@@ -18,22 +18,22 @@ class Drawer
 
 public:
 	// draws edge segments
-	void drawEdgeMap(const string& path, cv::Mat image, EdgeMap* edgeMap);
+	cv::Mat drawEdgeMap(const string& path, cv::Mat image, EdgeMap* edgeMap);
 
 	// draws line segments
-	void drawLines(const string& path, cv::Mat image, EDLines* edLines);
+	cv::Mat drawLines(const string& path, cv::Mat image, EDLines* edLines);
 
 	// draws corners (intersections of line segments)
-	void drawCorners(const string& path, cv::Mat image, const vector<vector<Corner>> &cornerGroups);
+	cv::Mat drawCorners(const string& path, cv::Mat image, const vector<vector<Corner>> &cornerGroups);
 
 	// draws quads
-	void drawQuads(const string& path, cv::Mat image, const vector<Quad> &quads);
+	cv::Mat drawQuads(const string& path, cv::Mat image, const vector<Quad> &quads);
 
 	// draws markers
-	void drawMarkers(const string& path, cv::Mat image, const vector<Marker> &markers);
+	cv::Mat drawMarkers(const string& path, cv::Mat image, const vector<Marker> &markers);
 
 	// draws refined markers and their ellipses
-	void drawEllipses(const string& path, cv::Mat image, const vector<Marker> &markers);
+	cv::Mat drawEllipses(const string& path, cv::Mat image, const vector<Marker> &markers);
 };
 
 #endif

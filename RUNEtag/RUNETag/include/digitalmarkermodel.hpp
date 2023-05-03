@@ -60,7 +60,7 @@ private:
     unsigned int max_symbols;
     double radius_ratio;
     double gap_factor;
-    double world_size;
+    
 
     std::vector<bool> bcode;
     std::vector<long> code;
@@ -72,7 +72,7 @@ private:
     mutable std::vector<unsigned int> detected_errors;
 
 public:
-
+    double world_size;
     DigitalMarkerModel();
 
     DigitalMarkerModel(std::ifstream& ifs);
